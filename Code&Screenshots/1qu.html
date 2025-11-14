@@ -1,0 +1,87 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Parking Fee Calculator</title>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+  <script>
+    $.get('yesterday.csv', function(data) {
+      var rows = data.split('\n'); 
+      var outputRows = [];
+
+      for (var i = 0; i < rows.length; i++) {
+        var row = rows[i].split(',');
+        var customer_id = row[0];
+        var entry_timestamp = new Date(row[1]);
+        var exit_timestamp = new Date(row[2]);
+
+        if (exit_timestamp <= entry_timestamp) {
+          error_flag = 'TRUE';
+        } else {
+          error_flag = 'FALSE';
+        }
+
+        var duration_hours = (exit_timestamp.getTime() - entry_timestamp.getTime()) / 3600000;
+
+        var charge;
+        if (duration_hours <= 3) {
+          charge = 2.00; 
+        } else {
+          charge = 2.00 + Math.ceil((duration_hours - 3) * 0.50);
+        }
+
+        if (charge > 10.00) {
+          charge = 10.00;
+        }
+
+        var rounded_duration_hours = Math.ceil(duration_hours);
+
+        outputRows.push([customer_id, rounded_duration_hours, charge, error_flag]);
+      }
+
+      $.csvWriter({
+        data: outputRows,
+        filename: 'charges_report.csv'
+      });
+
+      var total_receipts = 0;
+      var max_stay = 0;
+      var longest_stays = [];
+      for (var i = 0; i < outputRows.length; i++) {
+        var row = outputRows[i];
+        if (row[3] === 'TRUE') continue; // skip errors
+        total_receipts += parseFloat(row[2]);
+        if (parseFloat(row[1]) > max_stay) {
+          max_stay = parseFloat(row[1]);
+          longest_stays = [row[0]];
+        } else if (parseFloat(row[1]) === max_stay) {
+          longest_stays.push(row[0]);
+        }
+      }
+
+      console.log('Summary Statistics:');
+      console.log(`Total Receipts: $${total_receipts.toFixed(2)}`);
+      console.log(`Customers charged daily maximum: ${outputRows.filter(r => r[2] >= 10.00).length}`);
+      console.log(`Average Charge: $${(total_receipts / outputRows.length).toFixed(2)}`);
+      console.log(`Longest Stays: ${longest_stays.join(', ')}`);
+    });
+
+    function calculate_charges(duration_hours) {
+      if (duration_hours <= 3) {
+        return 2.00; 
+      } else {
+        var charge = 2.00 + Math.ceil((duration_hours - 3) * 0.50);
+        if (charge > 10.00) {
+          return 10.00;
+        } else {
+          return charge;
+        }
+      }
+    }
+
+  </script>
+</body>
+</html>
+
